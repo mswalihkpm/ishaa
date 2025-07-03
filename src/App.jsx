@@ -14,8 +14,9 @@ function App() {
   const [showAppIntro, setShowAppIntro] = useState(true);
   const [showUserIntro, setShowUserIntro] = useState(false);
   const [userPhoto, setUserPhoto] = useState(null);
-  const [loginAttempts, setLoginAttempts] = useState(loadData('loginAttempts', {}));
+  const [loginAttempts, setLoginAttempts] = useState({});
 
+  // Set theme on mount and when theme changes
   useEffect(() => {
     const root = window.document.documentElement;
     root.classList.remove('light', 'dark');
@@ -23,6 +24,7 @@ function App() {
     localStorage.setItem('theme', theme);
   }, [theme]);
 
+  // App intro splash
   useEffect(() => {
     const appIntroTimer = setTimeout(() => {
       setShowAppIntro(false);
@@ -30,34 +32,44 @@ function App() {
     return () => clearTimeout(appIntroTimer);
   }, []);
 
-  const handleLoginSuccess = (user) => {
+  // Load loginAttempts from Firestore/global on mount
+  useEffect(() => {
+    const fetchAttempts = async () => {
+      const attempts = await loadData('loginAttempts', {});
+      setLoginAttempts(attempts);
+    };
+    fetchAttempts();
+  }, []);
+
+  const handleLoginSuccess = async (user) => {
     setLoggedInUser(user);
     localStorage.setItem('loggedInUser', JSON.stringify(user));
-    
+
     setLoginAttempts(prev => {
       const updatedAttempts = { ...prev };
       delete updatedAttempts[user.name.toLowerCase().replace(/\s+/g, '')];
+      // Async update to Firestore
       saveData('loginAttempts', updatedAttempts);
       return updatedAttempts;
     });
 
     let photo = null;
     if (user.type === 'student') {
-      const studentDetails = loadData('studentDetails', {});
-      photo = studentDetails[user.name]?.photo || null;
+      const studentDetails = await loadData('studentDetails', {});
+      photo = studentDetails?.[user.name]?.photo || null;
     } else if (user.type === 'master') {
-      const masterDetails = loadData('masterDetails', {});
-      photo = masterDetails[user.name]?.photo || null;
+      const masterDetails = await loadData('masterDetails', {});
+      photo = masterDetails?.[user.name]?.photo || null;
     } else if (user.type === 'mhs') {
-      const mhsUserDetails = loadData('mhsUserDetails', {});
-      photo = mhsUserDetails[user.name]?.photo || null;
+      const mhsUserDetails = await loadData('mhsUserDetails', {});
+      photo = mhsUserDetails?.[user.name]?.photo || null;
     }
     setUserPhoto(photo);
     setShowUserIntro(true); 
     
     const userIntroTimer = setTimeout(() => {
       setShowUserIntro(false);
-    }, 2000); // Changed from 4000 to 2000
+    }, 2000);
     return () => clearTimeout(userIntroTimer);
   };
   
@@ -66,11 +78,11 @@ function App() {
     setLoginAttempts(prev => {
       const newCount = (prev[userKey] || 0) + 1;
       const updatedAttempts = { ...prev, [userKey]: newCount };
+      // Async update to Firestore/global
       saveData('loginAttempts', updatedAttempts);
       return updatedAttempts;
     });
   };
-
 
   const handleLogout = () => {
     setLoggedInUser(null);
@@ -82,24 +94,28 @@ function App() {
     setTheme((prevTheme) => (prevTheme === 'light' ? 'dark' : 'light'));
   };
 
+  // On mount, restore loggedInUser and photo
   useEffect(() => {
-    const storedUser = localStorage.getItem('loggedInUser');
-    if (storedUser) {
-      const parsedUser = JSON.parse(storedUser);
-      setLoggedInUser(parsedUser);
-      let photo = null;
-      if (parsedUser.type === 'student') {
-        const studentDetails = loadData('studentDetails', {});
-        photo = studentDetails[parsedUser.name]?.photo || null;
-      } else if (parsedUser.type === 'master') {
-        const masterDetails = loadData('masterDetails', {});
-        photo = masterDetails[parsedUser.name]?.photo || null;
-      } else if (parsedUser.type === 'mhs') {
-        const mhsUserDetails = loadData('mhsUserDetails', {});
-        photo = mhsUserDetails[parsedUser.name]?.photo || null;
+    const restoreUser = async () => {
+      const storedUser = localStorage.getItem('loggedInUser');
+      if (storedUser) {
+        const parsedUser = JSON.parse(storedUser);
+        setLoggedInUser(parsedUser);
+        let photo = null;
+        if (parsedUser.type === 'student') {
+          const studentDetails = await loadData('studentDetails', {});
+          photo = studentDetails?.[parsedUser.name]?.photo || null;
+        } else if (parsedUser.type === 'master') {
+          const masterDetails = await loadData('masterDetails', {});
+          photo = masterDetails?.[parsedUser.name]?.photo || null;
+        } else if (parsedUser.type === 'mhs') {
+          const mhsUserDetails = await loadData('mhsUserDetails', {});
+          photo = mhsUserDetails?.[parsedUser.name]?.photo || null;
+        }
+        setUserPhoto(photo);
       }
-      setUserPhoto(photo);
-    }
+    };
+    restoreUser();
   }, []);
   
   const renderContent = () => {
