@@ -24,26 +24,36 @@ import {
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
-const publicGroupNames = ["സമാജം", "COMPASS", "EXCELLENTIA", "CLEANY ISHA'ATH", "MULTHAQA", "ആഴ്ചക്കൂട്ടം"];
+const publicGroupNames = [
+  "സമാജം",
+  "COMPASS",
+  "EXCELLENTIA",
+  "CLEANY ISHA'ATH",
+  "MULTHAQA",
+  "ആഴ്ചക്കൂട്ടം"
+];
 
 const ChatGroupPage = ({ user }) => {
   const { toast } = useToast();
 
-  const [groups, setGroups] = useState(loadData('chatGroups',
-    publicGroupNames.map(name => ({
-      id: name.toLowerCase().replace(/\s+/g, '-'),
-      name,
-      members: ['all'],
-      messages: [],
-      isPublic: true
-    }))
-  ));
+  const [groups, setGroups] = useState(
+    loadData('chatGroups',
+      publicGroupNames.map(name => ({
+        id: name.toLowerCase().replace(/\s+/g, '-'),
+        name,
+        members: ['all'],
+        messages: [],
+        isPublic: true,
+        createdBy: 'Admin'
+      }))
+    )
+  );
 
   const [selectedGroup, setSelectedGroup] = useState(null);
   const [newMessage, setNewMessage] = useState('');
   const [notepadContent, setNotepadContent] = useState(loadData('chatNotepad', ''));
   const [searchTerm, setSearchTerm] = useState('');
-  const [userProfilePhoto, setUserProfilePhoto] = useState(user.photo || null);
+  const [userProfilePhoto, setUserProfilePhoto] = useState(loadData(`profilePhoto_${user.name}`, null));
 
   const [recording, setRecording] = useState(false);
   const mediaRecorderRef = useRef(null);
@@ -142,7 +152,8 @@ const ChatGroupPage = ({ user }) => {
       name,
       members: [user.name],
       messages: [],
-      isPublic: false
+      isPublic: false,
+      createdBy: user.name
     };
 
     setGroups(prev => [...prev, newGroup]);
@@ -156,18 +167,21 @@ const ChatGroupPage = ({ user }) => {
   const handleProfilePhotoUpload = (e) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      const fileUrl = URL.createObjectURL(file);
-      setUserProfilePhoto(fileUrl);
-      toast({ title: "Profile Photo Updated!", className: "bg-green-500 text-white" });
+      const reader = new FileReader();
+      reader.onload = () => {
+        const base64 = reader.result;
+        setUserProfilePhoto(base64);
+        saveData(`profilePhoto_${user.name}`, base64);
+        toast({ title: "Profile Photo Updated!", className: "bg-green-500 text-white" });
+      };
+      reader.readAsDataURL(file);
     }
   };
 
   const handleStartRecording = async () => {
     if (recording) {
-      // Stop recording
       mediaRecorderRef.current.stop();
     } else {
-      // Start recording
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         const mediaRecorder = new MediaRecorder(stream);
@@ -195,7 +209,9 @@ const ChatGroupPage = ({ user }) => {
     }
   };
 
-  const filteredGroups = groups.filter(g => g.name.toLowerCase().includes(searchTerm.toLowerCase()));
+  const filteredGroups = groups.filter(g =>
+    g.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <motion.div className="flex flex-col h-full">
@@ -259,6 +275,10 @@ const ChatGroupPage = ({ user }) => {
         <main className="flex-1 flex flex-col p-3 bg-gray-50">
           {selectedGroup ? (
             <>
+              <div className="mb-2 text-sm text-gray-600">
+                Created by: <span className="font-semibold">{selectedGroup.createdBy}</span>
+              </div>
+
               <ScrollArea className="flex-grow mb-3">
                 {selectedGroup.messages.map(msg => (
                   <motion.div
