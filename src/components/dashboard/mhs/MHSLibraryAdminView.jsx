@@ -13,12 +13,11 @@ import BookFormDialog from '@/components/dashboard/mhs/library/BookFormDialog';
 import BorrowManagementDialog from '@/components/dashboard/mhs/library/BorrowManagementDialog';
 import BookListItem from '@/components/dashboard/mhs/library/BookListItem';
 
-
 const MHSLibraryAdminView = ({ user, libraryType }) => {
   const { toast } = useToast();
   const booksStorageKey = `libraryBooks_${libraryType}`;
   const initialBooks = libraryType === 'kuthbkhana' ? initialBookData.filter(b => b.isArabic) : initialBookData;
-  const [books, setBooks] = useState(loadData(booksStorageKey, initialBooks));
+  const [books, setBooks] = useState([]);
   
   const [showAddBookDialog, setShowAddBookDialog] = useState(false);
   const [editingBook, setEditingBook] = useState(null);
@@ -32,10 +31,20 @@ const MHSLibraryAdminView = ({ user, libraryType }) => {
 
   const categories = libraryType === 'library' ? libraryCategories : kuthbkhanaCategories;
 
+  // Async load books from Firestore on mount
+  useEffect(() => {
+    async function fetchBooks() {
+      setBooks(await loadData(booksStorageKey, initialBooks));
+    }
+    fetchBooks();
+    // eslint-disable-next-line
+  }, [booksStorageKey]);
+
+  // Save changes to Firestore
   useEffect(() => {
     saveData(booksStorageKey, books);
+    // eslint-disable-next-line
   }, [books, booksStorageKey]);
-
 
   const handleSaveBook = (bookData) => {
     if (editingBook) {
@@ -79,9 +88,11 @@ const MHSLibraryAdminView = ({ user, libraryType }) => {
     });
 
     const mhsNotificationsKey = `mhsLibNotifications_${libraryType}`;
-    const mhsNotifications = loadData(mhsNotificationsKey, []);
-    mhsNotifications.push({ date: new Date().toISOString(), text: `Book "${updatedBookDetails.name}" was ${action} ${byWhom}.`});
-    saveData(mhsNotificationsKey, mhsNotifications);
+    // Async load notifications from Firestore
+    loadData(mhsNotificationsKey, []).then(mhsNotifications => {
+      mhsNotifications.push({ date: new Date().toISOString(), text: `Book "${updatedBookDetails.name}" was ${action} ${byWhom}.`});
+      saveData(mhsNotificationsKey, mhsNotifications);
+    });
 
     setShowBorrowDialog(false);
     setBookToManageBorrow(null);
