@@ -10,24 +10,34 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from '@/components/ui/use-toast';
 import { studentNames, spiritualActivities } from '@/lib/students';
 import { saveData, loadData } from '@/lib/dataStore';
-import { PlusCircle, Save, ListChecks, Users, CalendarDays, Download } from 'lucide-react';
+import { PlusCircle, Save } from 'lucide-react';
 
 const MHSSpiritualView = ({ user }) => {
   const { toast } = useToast();
   const today = new Date().toISOString().split('T')[0];
 
-  const [attendanceRecords, setAttendanceRecords] = useState(loadData('spiritualAttendance', {}));
-  const [customLists, setCustomLists] = useState(loadData('spiritualCustomLists', []));
-  
+  const [attendanceRecords, setAttendanceRecords] = useState({});
+  const [customLists, setCustomLists] = useState([]);
+  const [batches, setBatches] = useState([]);
+
   const [currentView, setCurrentView] = useState('main'); // main, prayer, dhikr, addCustom, takeAttendance
   const [activityType, setActivityType] = useState(''); // farl, sunnah, dhikr, custom
   const [activityName, setActivityName] = useState(''); // Zuhr, Witr, Asmaul Badr, Friday Halaqa
-  const [selectedBatch, setSelectedBatch] = useState('all-students'); // Default to a non-empty value
+  const [selectedBatch, setSelectedBatch] = useState('all-students');
   const [currentAttendance, setCurrentAttendance] = useState({}); // { [studentName]: true/false }
   const [newListName, setNewListName] = useState('');
 
-  const batches = loadData('batches', []); 
+  // Async load from Firestore on mount
+  useEffect(() => {
+    const fetchData = async () => {
+      setAttendanceRecords(await loadData('spiritualAttendance', {}));
+      setCustomLists(await loadData('spiritualCustomLists', []));
+      setBatches(await loadData('batches', []));
+    };
+    fetchData();
+  }, []);
 
+  // Save changes to Firestore
   useEffect(() => {
     saveData('spiritualAttendance', attendanceRecords);
   }, [attendanceRecords]);
@@ -85,7 +95,7 @@ const MHSSpiritualView = ({ user }) => {
     toast({ title: "Custom List Added", description: `"${newListName.trim()}" added.`, className: "bg-green-500 text-white" });
     setNewListName('');
   };
-  
+
   const studentsForAttendance = selectedBatch === 'all-students' 
     ? studentNames 
     : batches.find(b => b.name === selectedBatch)?.students || [];
@@ -125,21 +135,21 @@ const MHSSpiritualView = ({ user }) => {
   );
   
   const renderAddCustomList = () => (
-     <div className="p-4">
-        <Button variant="outline" onClick={() => setCurrentView('main')} className="mb-4">Back to Main</Button>
-        <h3 className="text-xl font-semibold text-primary mb-3">Custom Attendance Lists</h3>
-        <div className="flex gap-2 mb-4">
-            <Input value={newListName} onChange={(e) => setNewListName(e.target.value)} placeholder="New List Name (e.g., Friday Halaqa)" />
-            <Button onClick={handleAddCustomList}><PlusCircle className="mr-2 h-4 w-4"/>Add List</Button>
-        </div>
-        <h4 className="text-lg font-medium text-muted-foreground mb-2">Existing Custom Lists:</h4>
-        {customLists.length === 0 && <p className="text-sm text-center py-3">No custom lists created yet.</p>}
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            {customLists.map(list => (
-                <Button key={list.id} variant="secondary" onClick={() => handleActivitySelect('custom', list.name)} className="h-16">{list.name}</Button>
-            ))}
-        </div>
-     </div>
+    <div className="p-4">
+      <Button variant="outline" onClick={() => setCurrentView('main')} className="mb-4">Back to Main</Button>
+      <h3 className="text-xl font-semibold text-primary mb-3">Custom Attendance Lists</h3>
+      <div className="flex gap-2 mb-4">
+        <Input value={newListName} onChange={(e) => setNewListName(e.target.value)} placeholder="New List Name (e.g., Friday Halaqa)" />
+        <Button onClick={handleAddCustomList}><PlusCircle className="mr-2 h-4 w-4"/>Add List</Button>
+      </div>
+      <h4 className="text-lg font-medium text-muted-foreground mb-2">Existing Custom Lists:</h4>
+      {customLists.length === 0 && <p className="text-sm text-center py-3">No custom lists created yet.</p>}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        {customLists.map(list => (
+          <Button key={list.id} variant="secondary" onClick={() => handleActivitySelect('custom', list.name)} className="h-16">{list.name}</Button>
+        ))}
+      </div>
+    </div>
   );
 
   const renderTakeAttendance = () => (
@@ -189,7 +199,6 @@ const MHSSpiritualView = ({ user }) => {
       </Button>
     </div>
   );
-
 
   return (
     <ScrollArea className="h-full">
