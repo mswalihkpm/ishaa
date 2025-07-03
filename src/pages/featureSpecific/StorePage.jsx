@@ -24,7 +24,7 @@ const StorePage = ({ user }) => {
   const [editingItem, setEditingItem] = useState(null);
 
   const [newItem, setNewItem] = useState({
-    name: '', price: '', description: '', image: null, imagePreview: null
+    name: '', price: '', stock: '', description: '', image: null, imagePreview: null
   });
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -47,8 +47,8 @@ const StorePage = ({ user }) => {
       reader.onloadend = () => {
         setNewItem(prev => ({
           ...prev,
-          image: file, // store actual File object for possible upload
-          imagePreview: reader.result // store base64 for preview
+          image: file,
+          imagePreview: reader.result
         }));
       };
       reader.readAsDataURL(file);
@@ -62,15 +62,17 @@ const StorePage = ({ user }) => {
   };
 
   const handleSaveItem = () => {
-    if (!newItem.name.trim() || !newItem.price.trim()) {
+    if (!newItem.name.trim() || !newItem.price.trim() || !newItem.stock.trim()) {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Item name and price are required."
+        description: "Item name, price, and stock are required."
       });
       return;
     }
     const priceNum = parseFloat(newItem.price);
+    const stockNum = parseInt(newItem.stock, 10);
+
     if (isNaN(priceNum) || priceNum < 0) {
       toast({
         variant: "destructive",
@@ -80,9 +82,19 @@ const StorePage = ({ user }) => {
       return;
     }
 
+    if (isNaN(stockNum) || stockNum < 0) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Stock must be a valid non-negative number."
+      });
+      return;
+    }
+
     const itemDataToSave = {
       name: newItem.name,
       price: priceNum,
+      stock: stockNum,
       description: newItem.description,
       imagePreview: newItem.imagePreview || null
     };
@@ -115,7 +127,7 @@ const StorePage = ({ user }) => {
     }
 
     setShowAddItemDialog(false);
-    setNewItem({ name: '', price: '', description: '', image: null, imagePreview: null });
+    setNewItem({ name: '', price: '', stock: '', description: '', image: null, imagePreview: null });
     setEditingItem(null);
 
     const inputFile = document.getElementById('itemImageUploadStore');
@@ -127,6 +139,7 @@ const StorePage = ({ user }) => {
     setNewItem({
       name: item.name,
       price: item.price.toString(),
+      stock: item.stock?.toString() || '',
       description: item.description || '',
       image: null,
       imagePreview: item.imagePreview || null
@@ -212,7 +225,7 @@ const StorePage = ({ user }) => {
                   setShowAddItemDialog(isOpen);
                   if (!isOpen) {
                     setEditingItem(null);
-                    setNewItem({ name: '', price: '', description: '', image: null, imagePreview: null });
+                    setNewItem({ name: '', price: '', stock: '', description: '', image: null, imagePreview: null });
                   }
                 }}>
                   <DialogTrigger asChild>
@@ -227,6 +240,8 @@ const StorePage = ({ user }) => {
                       <Input id="itemNameStore" name="name" value={newItem.name} onChange={handleItemInputChange} />
                       <Label htmlFor="itemPriceStore">Price (₹)</Label>
                       <Input id="itemPriceStore" name="price" type="number" value={newItem.price} onChange={handleItemInputChange} />
+                      <Label htmlFor="itemStockStore">Stock</Label>
+                      <Input id="itemStockStore" name="stock" type="number" value={newItem.stock} onChange={handleItemInputChange} />
                       <Label htmlFor="itemDescriptionStore">Description</Label>
                       <Textarea id="itemDescriptionStore" name="description" value={newItem.description} onChange={handleItemInputChange} rows={3} />
                       <Label htmlFor="itemImageUploadStore">Image</Label>
@@ -243,7 +258,7 @@ const StorePage = ({ user }) => {
                       <Button variant="outline" onClick={() => {
                         setShowAddItemDialog(false);
                         setEditingItem(null);
-                        setNewItem({ name: '', price: '', description: '', image: null, imagePreview: null });
+                        setNewItem({ name: '', price: '', stock: '', description: '', image: null, imagePreview: null });
                       }}>Cancel</Button>
                       <Button onClick={handleSaveItem}>{editingItem ? 'Save Changes' : 'Add Item'}</Button>
                     </DialogFooter>
@@ -321,6 +336,7 @@ const StorePage = ({ user }) => {
                 <CardDescription className="text-primary text-lg font-bold">
                   ₹{item.price.toFixed(2)}
                 </CardDescription>
+                <p className="text-xs text-muted-foreground">Stock: {item.stock ?? 0}</p>
               </CardHeader>
               <CardContent className="text-xs text-muted-foreground flex-grow pb-2">
                 <p className="line-clamp-3">{item.description || "No description available."}</p>
