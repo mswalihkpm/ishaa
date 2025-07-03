@@ -19,7 +19,8 @@ import {
   Trash2,
   Plus,
   UploadCloud,
-  Search
+  Search,
+  Mic
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -43,6 +44,10 @@ const ChatGroupPage = ({ user }) => {
   const [notepadContent, setNotepadContent] = useState(loadData('chatNotepad', ''));
   const [searchTerm, setSearchTerm] = useState('');
   const [userProfilePhoto, setUserProfilePhoto] = useState(user.photo || null);
+
+  const [recording, setRecording] = useState(false);
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
 
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -157,6 +162,39 @@ const ChatGroupPage = ({ user }) => {
     }
   };
 
+  const handleStartRecording = async () => {
+    if (recording) {
+      // Stop recording
+      mediaRecorderRef.current.stop();
+    } else {
+      // Start recording
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const mediaRecorder = new MediaRecorder(stream);
+        audioChunksRef.current = [];
+        mediaRecorder.ondataavailable = (e) => {
+          audioChunksRef.current.push(e.data);
+        };
+        mediaRecorder.onstop = () => {
+          const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+          const audioUrl = URL.createObjectURL(blob);
+          handleSendMessage('voice', audioUrl);
+          setRecording(false);
+        };
+        mediaRecorderRef.current = mediaRecorder;
+        mediaRecorder.start();
+        setRecording(true);
+      } catch (err) {
+        console.error(err);
+        toast({
+          title: "Error",
+          description: "Microphone permission denied.",
+          className: "bg-red-500 text-white"
+        });
+      }
+    }
+  };
+
   const filteredGroups = groups.filter(g => g.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
   return (
@@ -260,14 +298,12 @@ const ChatGroupPage = ({ user }) => {
                 <Button onClick={() => fileInputRef.current.click()}>
                   <Paperclip />
                 </Button>
-
                 <Input
                   ref={fileInputRef}
                   type="file"
                   style={{ display: 'none' }}
                   onChange={handleFileChange}
                 />
-
                 <Input
                   value={newMessage}
                   onChange={e => setNewMessage(e.target.value)}
@@ -276,6 +312,13 @@ const ChatGroupPage = ({ user }) => {
                 />
                 <Button onClick={() => handleSendMessage()}>
                   <Send />
+                </Button>
+                <Button
+                  onClick={handleStartRecording}
+                  variant={recording ? "destructive" : "default"}
+                >
+                  <Mic className="w-4 h-4 mr-1" />
+                  {recording ? "Stop" : "Record"}
                 </Button>
               </div>
             </>
