@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,35 +12,53 @@ import { UploadCloud } from 'lucide-react';
 
 const StudentDashboardTab = ({ user }) => {
   const { toast } = useToast();
-  const [studentDetails, setStudentDetails] = useState(loadData('studentDetails', {}));
-  const [myDetails, setMyDetails] = useState(studentDetails[user.name] || initialStudentData());
-  const [studentPhoto, setStudentPhoto] = useState(myDetails.photo || null);
+  const fileInputRef = useRef(null);
+
+  const [studentDetails, setStudentDetails] = useState({});
+  const [myDetails, setMyDetails] = useState(initialStudentData());
+  const [studentPhoto, setStudentPhoto] = useState(null);
 
   useEffect(() => {
     const allDetails = loadData('studentDetails', {});
-    setMyDetails(allDetails[user.name] || initialStudentData());
-    setStudentPhoto((allDetails[user.name] || {}).photo || null);
+    const userDetails = allDetails[user.name] || initialStudentData();
+    setStudentDetails(allDetails);
+    setMyDetails(userDetails);
+    setStudentPhoto(userDetails.photo || null);
   }, [user.name]);
-  
+
   const handlePhotoUpload = (e) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setStudentPhoto(reader.result);
-        const updatedDetails = { ...studentDetails, [user.name]: { ...(studentDetails[user.name] || initialStudentData()), photo: reader.result } };
-        setStudentDetails(updatedDetails);
-        saveData('studentDetails', updatedDetails);
-        toast({ title: "Photo Uploaded", description: "Your profile photo has been updated.", className: "bg-green-500 text-white" });
-      };
-      reader.readAsDataURL(file);
+    const file = e.target.files?.[0];
+    if (!file) {
+      toast({ title: "No file selected", description: "Please select an image.", variant: "destructive" });
+      return;
     }
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const newPhoto = reader.result;
+      const updatedMyDetails = { ...myDetails, photo: newPhoto };
+      const updatedStudentDetails = {
+        ...studentDetails,
+        [user.name]: updatedMyDetails,
+      };
+
+      setStudentPhoto(newPhoto);
+      setMyDetails(updatedMyDetails);
+      setStudentDetails(updatedStudentDetails);
+
+      saveData('studentDetails', updatedStudentDetails);
+
+      toast({
+        title: "Photo Uploaded",
+        description: "Your profile photo has been updated.",
+        className: "bg-green-500 text-white",
+      });
+    };
+    reader.readAsDataURL(file);
   };
 
   const userLevelData = loadData('studentLevels', {})[user.name] || { level: 'Beginner', points: 0, subjectPoints: {} };
-  const upcomingEvents = loadData('circularEvents', []).filter(event => new Date(event.date) >= new Date()).sort((a,b) => new Date(a.date) - new Date(b.date));
+  const upcomingEvents = loadData('circularEvents', []).filter(event => new Date(event.date) >= new Date()).sort((a, b) => new Date(a.date) - new Date(b.date));
   const competitionPointsList = loadData('competitionPoints', []);
-
 
   return (
     <ScrollArea className="h-full p-1">
@@ -53,17 +71,21 @@ const StudentDashboardTab = ({ user }) => {
             </Avatar>
             <CardTitle className="text-xl text-primary/90">{user.name}</CardTitle>
             <CardDescription>{myDetails.class || 'Class Not Set'} - Reg No: {myDetails.registrationNumber || 'N/A'}</CardDescription>
-            <Button asChild size="sm" variant="outline" className="mt-2 text-xs">
-              <label htmlFor="studentPhotoUploadSelf" className="cursor-pointer">
-                <UploadCloud className="mr-1.5 h-3.5 w-3.5" /> Upload Photo
-                <input id="studentPhotoUploadSelf" type="file" accept="image/*" onChange={handlePhotoUpload} className="hidden" />
-              </label>
+            <Button size="sm" variant="outline" className="mt-2 text-xs" onClick={() => fileInputRef.current?.click()}>
+              <UploadCloud className="mr-1.5 h-3.5 w-3.5" /> Upload Photo
             </Button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handlePhotoUpload}
+              className="hidden"
+            />
           </CardHeader>
           <CardContent className="text-sm">
             <h4 className="font-semibold mb-1 text-muted-foreground">Details:</h4>
-            {studentDetailFields.slice(0, 7).map(field => ( // Show a subset of fields or all scrollable
-              (myDetails[field.id] || field.id === 'photo') && field.id !== 'photo' && (
+            {studentDetailFields.slice(0, 7).map(field => (
+              myDetails[field.id] && field.id !== 'photo' && (
                 <p key={field.id} className="mb-0.5">
                   <strong className="text-foreground/80">{field.label}:</strong> {myDetails[field.id]}
                 </p>
@@ -91,7 +113,7 @@ const StudentDashboardTab = ({ user }) => {
             </div>
 
             <div className="p-3 border rounded-md bg-background/30">
-              <h4 className="font-semibold text-md text-foreground/90">Upcoming Events ({upcomingEvents.slice(0,3).length})</h4>
+              <h4 className="font-semibold text-md text-foreground/90">Upcoming Events ({upcomingEvents.slice(0, 3).length})</h4>
               {upcomingEvents.length === 0 && <p className="text-xs text-muted-foreground">No upcoming events.</p>}
               <ul className="text-xs space-y-0.5 mt-1">
                 {upcomingEvents.slice(0, 3).map(event => (
@@ -109,7 +131,7 @@ const StudentDashboardTab = ({ user }) => {
                 <ul className="space-y-0.5 pr-2">
                   {competitionPointsList.map(comp => (
                     <li key={comp.id} className="flex justify-between">
-                      <span>{comp.name}:</span> 
+                      <span>{comp.name}:</span>
                       <span className="font-semibold text-primary/90">{comp.points} points</span>
                     </li>
                   ))}
