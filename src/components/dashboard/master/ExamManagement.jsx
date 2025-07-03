@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,19 +5,20 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from '@/components/ui/use-toast';
 import { studentNames } from '@/lib/students';
 import { saveData, loadData } from '@/lib/dataStore';
-import { PlusCircle, Edit3, Trash2, ListChecks, BarChart2, Search, Users } from 'lucide-react';
+import { PlusCircle, Edit3, Trash2, ListChecks, BarChart2 } from 'lucide-react';
 
 const ExamManagement = () => {
   const { toast } = useToast();
-  const [exams, setExams] = useState(loadData('examsData', [])); 
-  const [examResults, setExamResults] = useState(loadData('examResultsData', {})); 
-  const [batches, setBatches] = useState(loadData('batches', []));
-  
+
+  // Async state initialization for Firestore-based storage
+  const [exams, setExams] = useState([]);
+  const [examResults, setExamResults] = useState({});
+  const [batches, setBatches] = useState([]);
   const [showCreateExamDialog, setShowCreateExamDialog] = useState(false);
   const [editingExam, setEditingExam] = useState(null);
   const [currentExam, setCurrentExam] = useState({ name: '', subject: '', date: '', totalMarks: '', batchId: '' });
@@ -30,15 +30,26 @@ const ExamManagement = () => {
   const [activeTab, setActiveTab] = useState("manageExams");
   const [studentSearchTerm, setStudentSearchTerm] = useState('');
 
+  // Load initial state from Firestore
+  useEffect(() => {
+    const fetchData = async () => {
+      setExams(await loadData('examsData', []));
+      setExamResults(await loadData('examResultsData', {}));
+      setBatches(await loadData('batches', []));
+    };
+    fetchData();
+  }, []);
 
+  // Save changes to Firestore
   useEffect(() => { saveData('examsData', exams); }, [exams]);
   useEffect(() => { saveData('examResultsData', examResults); }, [examResults]);
+  useEffect(() => { saveData('batches', batches); }, [batches]);
 
   const handleExamInputChange = (e) => {
     const { name, value } = e.target;
     setCurrentExam(prev => ({ ...prev, [name]: value }));
   };
-  
+
   const handleExamBatchChange = (value) => {
     setCurrentExam(prev => ({ ...prev, batchId: value }));
   };
@@ -60,7 +71,7 @@ const ExamManagement = () => {
     } else {
       const newExam = { ...currentExam, totalMarks: totalMarksNum, id: Date.now().toString() };
       setExams(prevExams => [...prevExams, newExam]);
-      setExamResults(prevResults => ({ ...prevResults, [newExam.id]: {} })); 
+      setExamResults(prevResults => ({ ...prevResults, [newExam.id]: {} }));
       toast({ title: "Exam Created", description: `${currentExam.name} created.`, className: "bg-green-500 text-white" });
     }
     resetExamForm();
@@ -81,7 +92,7 @@ const ExamManagement = () => {
     });
     toast({ title: "Exam Deleted", description: "Exam and its results deleted.", className: "bg-red-500 text-white" });
   };
-  
+
   const resetExamForm = () => {
     setShowCreateExamDialog(false);
     setEditingExam(null);
@@ -92,7 +103,7 @@ const ExamManagement = () => {
     setSelectedExamForMarks(exam);
     setStudentMarks(examResults[exam.id] || {});
     setShowAssignMarksDialog(true);
-    setStudentSearchTerm(''); 
+    setStudentSearchTerm('');
   };
 
   const handleStudentMarkChange = (studentName, marks) => {
@@ -105,17 +116,16 @@ const ExamManagement = () => {
     setExamResults(updatedExamResults);
     toast({ title: "Marks Saved", description: `Marks for ${selectedExamForMarks.name} saved.`, className: "bg-green-500 text-white" });
     setShowAssignMarksDialog(false);
-    setStudentSearchTerm(''); 
+    setStudentSearchTerm('');
   };
-  
+
   const getStudentsForSelectedExamBatch = () => {
-    if (!selectedExamForMarks || !selectedExamForMarks.batchId) return studentNames; // Default to all if no batch
+    if (!selectedExamForMarks || !selectedExamForMarks.batchId) return studentNames;
     const batch = batches.find(b => b.id === selectedExamForMarks.batchId);
-    return batch ? batch.students : studentNames; // Fallback to all if batch not found
+    return batch ? batch.students : studentNames;
   };
 
   const filteredStudentNamesForMarks = getStudentsForSelectedExamBatch().filter(name => name.toLowerCase().includes(studentSearchTerm.toLowerCase()));
-
 
   return (
     <ScrollArea className="h-full p-1">
@@ -166,34 +176,34 @@ const ExamManagement = () => {
         </TabsContent>
 
         <TabsContent value="viewResults">
-           <Card className="bg-card/80 dark:bg-card/70 shadow-lg">
-             <CardHeader>
-               <CardTitle className="text-xl text-primary/90">Exam Results Overview</CardTitle>
-               <CardDescription>View student marks for each exam.</CardDescription>
-             </CardHeader>
-             <CardContent>
-               <ScrollArea className="h-[calc(100vh-22rem)]">
-                 {exams.length === 0 && <p className="text-center text-muted-foreground py-8">No exams available to show results.</p>}
-                 {exams.map(exam => {
-                   const batchName = batches.find(b => b.id === exam.batchId)?.name || 'N/A';
-                   return (
-                     <div key={`results-${exam.id}`} className="mb-4 p-3 border rounded-md bg-background/40">
-                       <h4 className="font-semibold text-md text-primary mb-1">{exam.name} - {exam.subject} (Batch: {batchName}, Total: {exam.totalMarks})</h4>
-                       <ul className="text-sm space-y-0.5">
-                         {Object.entries(examResults[exam.id] || {}).map(([student, marks]) => (
-                           <li key={student} className="flex justify-between">
-                             <span>{student}:</span>
-                             <span>{marks} / {exam.totalMarks}</span>
-                           </li>
-                         ))}
-                         {Object.keys(examResults[exam.id] || {}).length === 0 && <p className="text-xs text-muted-foreground">No marks entered yet for this exam.</p>}
-                       </ul>
-                     </div>
-                   );
-                 })}
-               </ScrollArea>
-             </CardContent>
-           </Card>
+          <Card className="bg-card/80 dark:bg-card/70 shadow-lg">
+            <CardHeader>
+              <CardTitle className="text-xl text-primary/90">Exam Results Overview</CardTitle>
+              <CardDescription>View student marks for each exam.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ScrollArea className="h-[calc(100vh-22rem)]">
+                {exams.length === 0 && <p className="text-center text-muted-foreground py-8">No exams available to show results.</p>}
+                {exams.map(exam => {
+                  const batchName = batches.find(b => b.id === exam.batchId)?.name || 'N/A';
+                  return (
+                    <div key={`results-${exam.id}`} className="mb-4 p-3 border rounded-md bg-background/40">
+                      <h4 className="font-semibold text-md text-primary mb-1">{exam.name} - {exam.subject} (Batch: {batchName}, Total: {exam.totalMarks})</h4>
+                      <ul className="text-sm space-y-0.5">
+                        {Object.entries(examResults[exam.id] || {}).map(([student, marks]) => (
+                          <li key={student} className="flex justify-between">
+                            <span>{student}:</span>
+                            <span>{marks} / {exam.totalMarks}</span>
+                          </li>
+                        ))}
+                        {Object.keys(examResults[exam.id] || {}).length === 0 && <p className="text-xs text-muted-foreground">No marks entered yet for this exam.</p>}
+                      </ul>
+                    </div>
+                  );
+                })}
+              </ScrollArea>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
 
@@ -226,18 +236,18 @@ const ExamManagement = () => {
       {showAssignMarksDialog && selectedExamForMarks && (
         <Dialog open={showAssignMarksDialog} onOpenChange={(isOpen) => {
             setShowAssignMarksDialog(isOpen);
-            if (!isOpen) setStudentSearchTerm(''); 
+            if (!isOpen) setStudentSearchTerm('');
         }}>
           <DialogContent className="sm:max-w-md bg-card/90 dark:bg-card/85 backdrop-blur-md">
             <DialogHeader>
               <DialogTitle>Assign Marks for {selectedExamForMarks.name}</DialogTitle>
               <DialogDescription>Batch: {batches.find(b => b.id === selectedExamForMarks.batchId)?.name || 'N/A'} | Total Marks: {selectedExamForMarks.totalMarks}</DialogDescription>
             </DialogHeader>
-            <Input 
-              placeholder="Search students in batch..." 
-              value={studentSearchTerm} 
-              onChange={e => setStudentSearchTerm(e.target.value)} 
-              className="my-2 h-8 text-xs" 
+            <Input
+              placeholder="Search students in batch..."
+              value={studentSearchTerm}
+              onChange={e => setStudentSearchTerm(e.target.value)}
+              className="my-2 h-8 text-xs"
             />
             <ScrollArea className="max-h-[60vh] p-1 pr-2">
               <div className="space-y-2">
