@@ -14,20 +14,30 @@ import { UserPlus, Trash2, Users, Shield, Building } from 'lucide-react';
 const UserManagement = ({ masterUser }) => {
   const { toast } = useToast();
 
-  const [students, setStudents] = useState(loadData('managedStudents', initialStudentNames));
-  const [masters, setMasters] = useState(loadData('managedMasters', initialMasterNames));
-  const [mhsUsers, setMhsUsers] = useState(loadData('managedMHSUsers', initialMhsUsers));
-  
+  const [students, setStudents] = useState([]);
+  const [masters, setMasters] = useState([]);
+  const [mhsUsers, setMhsUsers] = useState([]);
   const [userTypeToAdd, setUserTypeToAdd] = useState('student');
   const [newUserName, setNewUserName] = useState('');
   const [newMhsRole, setNewMhsRole] = useState('president');
   const [newMhsSubRole, setNewMhsSubRole] = useState(mhsOtherSubRoles[0]?.value || 'accounter');
 
+  // Load initial lists from Firestore
+  useEffect(() => {
+    async function fetchUsers() {
+      setStudents(await loadData('managedStudents', initialStudentNames));
+      setMasters(await loadData('managedMasters', initialMasterNames));
+      setMhsUsers(await loadData('managedMHSUsers', initialMhsUsers));
+    }
+    fetchUsers();
+  }, []);
+
+  // Save updated lists to Firestore
   useEffect(() => { saveData('managedStudents', students); }, [students]);
   useEffect(() => { saveData('managedMasters', masters); }, [masters]);
   useEffect(() => { saveData('managedMHSUsers', mhsUsers); }, [mhsUsers]);
 
-  const handleAddUser = () => {
+  const handleAddUser = async () => {
     if (!newUserName.trim()) {
       toast({ variant: "destructive", title: "Error", description: "User name cannot be empty." });
       return;
@@ -42,7 +52,7 @@ const UserManagement = ({ masterUser }) => {
         userExists = students.includes(trimmedUserName);
         if (!userExists) {
           setStudents(prev => [...prev, trimmedUserName]);
-          const userPasswords = loadData('userPasswords', {});
+          const userPasswords = await loadData('userPasswords', {});
           const studentKey = `student_${trimmedUserName.toLowerCase().replace(/\s+/g, '')}`;
           userPasswords[studentKey] = generatePassword(trimmedUserName, 'student');
           saveData('userPasswords', userPasswords);
@@ -53,7 +63,7 @@ const UserManagement = ({ masterUser }) => {
         userExists = masters.includes(trimmedUserName);
         if (!userExists) {
           setMasters(prev => [...prev, trimmedUserName]);
-          const userPasswords = loadData('userPasswords', {});
+          const userPasswords = await loadData('userPasswords', {});
           const masterKey = `master_${trimmedUserName.toLowerCase().replace(/\s+/g, '')}`;
           userPasswords[masterKey] = generatePassword(trimmedUserName, 'master');
           saveData('userPasswords', userPasswords);
@@ -69,7 +79,7 @@ const UserManagement = ({ masterUser }) => {
             ...(newMhsRole === 'other' && { subRole: newMhsSubRole })
           };
           setMhsUsers(prev => [...prev, mhsUserObject]);
-          const userPasswords = loadData('userPasswords', {});
+          const userPasswords = await loadData('userPasswords', {});
           let mhsKey = `mhs_${trimmedUserName.toLowerCase().replace(/\s+/g, '')}_${newMhsRole}`;
           if (newMhsRole === 'other' && newMhsSubRole) {
             mhsKey = `mhs_${trimmedUserName.toLowerCase().replace(/\s+/g, '')}_${newMhsSubRole}`;
@@ -92,13 +102,13 @@ const UserManagement = ({ masterUser }) => {
     }
   };
 
-  const handleDeleteUser = (userName, type) => {
+  const handleDeleteUser = async (userName, type) => {
     if (type === 'master' && userName === masterUser.name) {
       toast({ variant: "destructive", title: "Action Denied", description: "Cannot delete your own master account." });
       return;
     }
     
-    const userPasswords = loadData('userPasswords', {});
+    const userPasswords = await loadData('userPasswords', {});
     const userKeyBase = userName.toLowerCase().replace(/\s+/g, '');
 
     switch (type) {
