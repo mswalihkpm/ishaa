@@ -51,7 +51,7 @@ const StudentView = ({ user }) => {
         <NavItem value="library" label="Library" icon={LibraryIcon} hasNotification={hasLibraryNotifications && studentLibMessages.some(m => m.type === 'library' || !m.type)} />
         <NavItem value="kuthbkhana" label="Kuthbkhana" icon={BookOpen} hasNotification={hasLibraryNotifications && studentLibMessages.some(m => m.type === 'kuthbkhana')} />
       </nav>
-      
+     
       <div className="sm:hidden p-2 mb-2 border-b border-border/50">
         <Select value={activeTab} onValueChange={setActiveTab}>
             <SelectTrigger className="w-full">
