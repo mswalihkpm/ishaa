@@ -1,9 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogTrigger
+} from '@/components/ui/dialog';
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { PlusCircle, Trash2, Edit3 } from 'lucide-react';
@@ -11,7 +19,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { studentNames } from '@/lib/students';
 import { saveData, loadData } from '@/lib/dataStore';
 
-const BatchManagement = () => {
+const BatchManagement = ({ user }) => {
   const { toast } = useToast();
   const [showCreateBatchDialog, setShowCreateBatchDialog] = useState(false);
   const [batchName, setBatchName] = useState('');
@@ -26,7 +34,9 @@ const BatchManagement = () => {
 
   const handleStudentSelectionForBatch = (studentName) => {
     setSelectedStudentsForBatch(prev =>
-      prev.includes(studentName) ? prev.filter(s => s !== studentName) : [...prev, studentName]
+      prev.includes(studentName)
+        ? prev.filter(s => s !== studentName)
+        : [...prev, studentName]
     );
   };
 
@@ -36,7 +46,7 @@ const BatchManagement = () => {
       return;
     }
     if (selectedStudentsForBatch.length === 0) {
-      toast({ variant: "destructive", title: "Error", description: "Please select at least one student for the batch." });
+      toast({ variant: "destructive", title: "Error", description: "Please select at least one student." });
       return;
     }
 
@@ -44,15 +54,16 @@ const BatchManagement = () => {
       id: editingBatch ? editingBatch.id : Date.now().toString(),
       name: batchName,
       students: selectedStudentsForBatch,
+      createdBy: editingBatch ? editingBatch.createdBy : user.name,
       details: editingBatch ? { ...editingBatch.details, ...studentDetails } : studentDetails
     };
 
     if (editingBatch) {
       setBatches(batches.map(b => b.id === editingBatch.id ? newBatch : b));
-      toast({ title: "Success", description: "Batch updated successfully.", className: "bg-green-500 text-white" });
+      toast({ title: "Batch updated!", className: "bg-green-500 text-white" });
     } else {
       setBatches([...batches, newBatch]);
-      toast({ title: "Success", description: "Batch created successfully.", className: "bg-green-500 text-white" });
+      toast({ title: "Batch created!", className: "bg-green-500 text-white" });
     }
 
     setShowCreateBatchDialog(false);
@@ -72,14 +83,11 @@ const BatchManagement = () => {
 
   const handleDeleteBatch = (batchId) => {
     setBatches(batches.filter(b => b.id !== batchId));
-    toast({ title: "Success", description: "Batch deleted successfully.", className: "bg-red-500 text-white" });
+    toast({ title: "Batch deleted.", className: "bg-red-500 text-white" });
   };
 
   const handleStudentDetailChange = (studentName, detail) => {
-    setStudentDetails(prev => ({
-      ...prev,
-      [studentName]: detail
-    }));
+    setStudentDetails(prev => ({ ...prev, [studentName]: detail }));
   };
 
   return (
@@ -89,7 +97,16 @@ const BatchManagement = () => {
           <CardTitle className="text-xl text-primary/90">Manage Batches</CardTitle>
           <Dialog open={showCreateBatchDialog} onOpenChange={setShowCreateBatchDialog}>
             <DialogTrigger asChild>
-              <Button onClick={() => { setEditingBatch(null); setBatchName(''); setSelectedStudentsForBatch([]); setStudentDetails({}); setShowCreateBatchDialog(true); }} className="bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600 text-white shadow-md text-xs px-3 py-1.5 sm:text-sm sm:px-4 sm:py-2 h-auto">
+              <Button
+                onClick={() => {
+                  setEditingBatch(null);
+                  setBatchName('');
+                  setSelectedStudentsForBatch([]);
+                  setStudentDetails({});
+                  setShowCreateBatchDialog(true);
+                }}
+                className="bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600 text-white shadow-md text-xs px-3 py-1.5 sm:text-sm sm:px-4 sm:py-2 h-auto"
+              >
                 <PlusCircle className="mr-1 sm:mr-2 h-4 w-4 sm:h-5 sm:w-5" /> {editingBatch ? "Edit Batch" : "Create Batch"}
               </Button>
             </DialogTrigger>
@@ -97,7 +114,9 @@ const BatchManagement = () => {
               <DialogHeader>
                 <DialogTitle className="text-2xl text-primary">{editingBatch ? "Edit Batch" : "Create New Batch"}</DialogTitle>
                 <DialogDescription>
-                  {editingBatch ? "Update the batch details below." : "Fill in the details to create a new batch."}
+                  {editingBatch
+                    ? "Update the batch details below."
+                    : "Fill in the details to create a new batch."}
                 </DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
@@ -105,7 +124,13 @@ const BatchManagement = () => {
                   <Label htmlFor="batchNameDialog" className="text-right text-muted-foreground">
                     Batch Name
                   </Label>
-                  <Input id="batchNameDialog" value={batchName} onChange={(e) => setBatchName(e.target.value)} className="col-span-3" placeholder="e.g., Morning Scholars" />
+                  <Input
+                    id="batchNameDialog"
+                    value={batchName}
+                    onChange={(e) => setBatchName(e.target.value)}
+                    className="col-span-3"
+                    placeholder="e.g., Science Group A"
+                  />
                 </div>
                 <div className="grid grid-cols-4 items-start gap-4">
                   <Label className="text-right pt-2 text-muted-foreground">Students</Label>
@@ -114,13 +139,13 @@ const BatchManagement = () => {
                       {studentNames.map(student => (
                         <div key={student} className="flex items-center space-x-2">
                           <Checkbox
-                            id={`student-checkbox-${student.replace(/\s+/g, '-')}`}
+                            id={`student-${student}`}
                             checked={selectedStudentsForBatch.includes(student)}
                             onCheckedChange={() => handleStudentSelectionForBatch(student)}
                           />
                           <label
-                            htmlFor={`student-checkbox-${student.replace(/\s+/g, '-')}`}
-                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                            htmlFor={`student-${student}`}
+                            className="text-sm font-medium leading-none"
                           >
                             {student}
                           </label>
@@ -134,10 +159,12 @@ const BatchManagement = () => {
                     <Label className="text-right pt-2 text-muted-foreground">Student Details</Label>
                     <ScrollArea className="col-span-3 h-[150px] sm:h-[200px] w-full rounded-md border p-4 bg-background/50 space-y-3">
                       {selectedStudentsForBatch.map(student => (
-                        <div key={`detail-input-div-${student}`}>
-                          <Label htmlFor={`detail-input-${student.replace(/\s+/g, '-')}`} className="text-sm font-medium text-foreground/80">{student}</Label>
+                        <div key={`detail-${student}`}>
+                          <Label htmlFor={`detail-input-${student}`} className="text-sm font-medium">
+                            {student}
+                          </Label>
                           <Input
-                            id={`detail-input-${student.replace(/\s+/g, '-')}`}
+                            id={`detail-input-${student}`}
                             value={studentDetails[student] || ''}
                             onChange={(e) => handleStudentDetailChange(student, e.target.value)}
                             placeholder={`Add notes for ${student}...`}
@@ -150,8 +177,21 @@ const BatchManagement = () => {
                 )}
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={() => { setShowCreateBatchDialog(false); setEditingBatch(null); }}>Cancel</Button>
-                <Button onClick={handleSaveBatch} className="bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white">{editingBatch ? "Save Changes" : "Create Batch"}</Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowCreateBatchDialog(false);
+                    setEditingBatch(null);
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleSaveBatch}
+                  className="bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white"
+                >
+                  {editingBatch ? "Save Changes" : "Create Batch"}
+                </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
@@ -164,7 +204,10 @@ const BatchManagement = () => {
               {batches.map(batch => (
                 <Card key={batch.id} className="bg-background/50 dark:bg-background/40 shadow-sm">
                   <CardHeader className="flex flex-row justify-between items-center py-2 px-3 sm:py-3 sm:px-4">
-                    <CardTitle className="text-md sm:text-lg text-primary/80">{batch.name}</CardTitle>
+                    <div>
+                      <CardTitle className="text-md sm:text-lg text-primary/80">{batch.name}</CardTitle>
+                      <CardDescription className="text-xs text-muted-foreground">Created by: {batch.createdBy}</CardDescription>
+                    </div>
                     <div className="space-x-1">
                       <Button variant="ghost" size="icon" onClick={() => handleEditBatch(batch)} className="text-blue-500 hover:text-blue-600 hover:bg-blue-500/10 h-7 w-7 sm:h-8 sm:w-8">
                         <Edit3 className="h-4 w-4" />
@@ -183,11 +226,13 @@ const BatchManagement = () => {
                     </div>
                     {Object.keys(batch.details || {}).length > 0 && (
                       <>
-                        <p className="text-xs sm:text-sm text-muted-foreground mt-2 mb-0.5">Specific Details:</p>
+                        <p className="text-xs sm:text-sm text-muted-foreground mt-2 mb-0.5">Details:</p>
                         <ul className="list-disc list-inside pl-1 space-y-0.5 text-xs">
-                          {Object.entries(batch.details).map(([student, detail]) => (
-                            detail.trim() && <li key={student}><strong className="text-foreground/70">{student}:</strong> {detail}</li>
-                          ))}
+                          {Object.entries(batch.details).map(([student, detail]) =>
+                            detail.trim() && (
+                              <li key={student}><strong className="text-foreground/70">{student}:</strong> {detail}</li>
+                            )
+                          )}
                         </ul>
                       </>
                     )}
@@ -196,7 +241,7 @@ const BatchManagement = () => {
               ))}
             </div>
           ) : (
-              <p className="text-center text-muted-foreground py-10">No batches created yet. Click "Create Batch" to get started.</p>
+            <p className="text-center text-muted-foreground py-10">No batches yet. Click "Create Batch" to start.</p>
           )}
         </ScrollArea>
       </CardContent>
