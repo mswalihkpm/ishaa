@@ -1,17 +1,28 @@
-export const saveData = (key, data) => {
+import { db } from './firebase'; // Assumes you have a firebase.js exporting a Firestore db instance
+
+// Save data to the shared/global Firestore document under a dynamic key
+export const saveData = async (key, data) => {
   try {
-    localStorage.setItem(key, JSON.stringify(data));
+    const docRef = db.collection('sharedData').doc('globalDoc');
+    const doc = await docRef.get();
+    const oldData = doc.exists ? doc.data() : {};
+    await docRef.set({ ...oldData, [key]: data });
   } catch (error) {
-    console.error("Error saving to localStorage", error);
+    console.error("Error saving to Firestore", error);
   }
 };
 
-export const loadData = (key, defaultValue = null) => {
+// Load data from the shared/global Firestore document by key
+export const loadData = async (key, defaultValue = null) => {
   try {
-    const item = localStorage.getItem(key);
-    return item ? JSON.parse(item) : defaultValue;
+    const doc = await db.collection('sharedData').doc('globalDoc').get();
+    if (doc.exists) {
+      const data = doc.data();
+      return data && data[key] !== undefined ? data[key] : defaultValue;
+    }
+    return defaultValue;
   } catch (error) {
-    console.error("Error loading from localStorage", error);
+    console.error("Error loading from Firestore", error);
     return defaultValue;
   }
 };
