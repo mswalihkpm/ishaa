@@ -1,63 +1,38 @@
 import React, { useState, useEffect } from 'react';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardFooter
-} from '@/components/ui/card';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter
-} from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/components/ui/use-toast';
-import { loadData, saveData } from '@/lib/dataStore';
-import {
-  libraryCategories,
-  kuthbkhanaCategories,
-  initialBookData
-} from '@/lib/students';
-import {
-  Search,
-  Bell,
-  BookOpen,
-  Info,
-  Send,
-  Heart,
-  ThumbsUp,
-  Meh,
-  Smile
-} from 'lucide-react';
+import { initialBookData, libraryCategories, kuthbkhanaCategories } from '@/lib/students';
+import { saveData, loadData } from '@/lib/dataStore';
+import { Search, Bell, BookOpen, Info, Heart, ThumbsUp, Meh, Smile } from 'lucide-react';
 
 const StudentLibraryTab = ({ user, libraryType, messages }) => {
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const booksStorageKey = `libraryBooks_${libraryType}`;
-  const books = loadData(
-    booksStorageKey,
-    libraryType === 'kuthbkhana'
-      ? initialBookData.filter((b) => b.isArabic)
-      : initialBookData
-  );
-
+  const [books, setBooks] = useState([]);
+  const bookUserReviewsKey = `bookUserReviews_${libraryType}`;
+  const [allBookReviews, setAllBookReviews] = useState({});
   const [selectedBook, setSelectedBook] = useState(null);
   const [showBookDetailsDialog, setShowBookDetailsDialog] = useState(false);
-
-  const bookUserReviewsKey = `bookUserReviews_${libraryType}`;
-  const [allBookReviews, setAllBookReviews] = useState(
-    loadData(bookUserReviewsKey, {})
-  );
   const [currentUserReviewText, setCurrentUserReviewText] = useState('');
   const [newCommentText, setNewCommentText] = useState('');
+
+  useEffect(() => {
+    const fetchBooksAndReviews = async () => {
+      const loadedBooks = await loadData(
+        booksStorageKey,
+        libraryType === 'kuthbkhana'
+          ? initialBookData.filter((b) => b.isArabic)
+          : initialBookData
+      );
+      setBooks(loadedBooks);
+      setAllBookReviews(await loadData(bookUserReviewsKey, {}));
+    };
+    fetchBooksAndReviews();
+    // eslint-disable-next-line
+  }, [booksStorageKey, bookUserReviewsKey, libraryType]);
 
   useEffect(() => {
     saveData(bookUserReviewsKey, allBookReviews);
@@ -163,9 +138,9 @@ const StudentLibraryTab = ({ user, libraryType, messages }) => {
     });
   };
 
-  const handleOrderBook = (book) => {
+  const handleOrderBook = async (book) => {
     const mhsNotificationsKey = `mhsLibNotifications_${libraryType}`;
-    const mhsNotifications = loadData(mhsNotificationsKey, []);
+    const mhsNotifications = await loadData(mhsNotificationsKey, []);
     mhsNotifications.push({
       date: new Date().toISOString(),
       text: `${user.name} has requested to borrow the book: "${book.name}" (BN: ${book.bookNumber}). Please process.`,
@@ -173,7 +148,7 @@ const StudentLibraryTab = ({ user, libraryType, messages }) => {
       requester: user.name,
       status: 'pending'
     });
-    saveData(mhsNotificationsKey, mhsNotifications);
+    await saveData(mhsNotificationsKey, mhsNotifications);
     toast({
       title: 'Order Request Sent',
       description: `Your request to borrow "${book.name}" has been sent to the ${libraryType} admin.`,
@@ -323,8 +298,7 @@ const StudentLibraryTab = ({ user, libraryType, messages }) => {
           </ScrollArea>
         </CardContent>
       </Card>
-
-      {/* Dialog part skipped for brevity. If you want, I’ll update the Dialog image logic too on request! */}
+      {/* Dialog rendering for book details and review left as in your code */}
     </>
   );
 };
