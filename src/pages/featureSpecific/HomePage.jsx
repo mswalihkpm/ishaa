@@ -10,60 +10,58 @@ import { Bell, CalendarDays, Info, ShoppingCart, MessageSquare, Users, KeyRound 
 const HomePage = ({ user }) => {
   const { toast } = useToast();
   const [notifications, setNotifications] = useState([]);
-  const [teams, setTeams] = useState(loadData('teamsData', []));
+  const [teams, setTeams] = useState([]);
 
   useEffect(() => {
-    let userNotifications = [];
-    // Load general notifications for the user
-    userNotifications = loadData(`userNotifications_${user.name}`, []);
+    const fetchHomeData = async () => {
+      let userNotifications = await loadData(`userNotifications_${user.name}`, []);
 
-    // Specific notifications for MHS Library/Kuthbkhana admins
-    if (user.type === 'mhs' && (user.subRole === 'library' || user.subRole === 'kuthbkhana')) {
-      const mhsLibNotifs = loadData(`mhsLibNotifications_${user.subRole}`, []);
-      userNotifications = [...userNotifications, ...mhsLibNotifs];
-    }
-    
-    // Specific notifications for MHS Seller
-    if (user.type === 'mhs' && user.subRole === 'seller') {
-        const sellerNotifs = loadData(`userNotifications_Seller Example`, []); // Assuming "Seller Example" is the key
-        userNotifications = [...userNotifications, ...sellerNotifs];
-    }
-
-    // Student library messages
-    if (user.type === 'student' || user.type === 'master') { // Masters might also borrow
-      const libraryMessagesKey = `studentLibMessages_${user.name}`;
-      const studentLibMsgs = loadData(libraryMessagesKey, []);
-      if (studentLibMsgs.length > 0) {
-          userNotifications = [...userNotifications, ...studentLibMsgs.map(m => ({ ...m, source: 'Library System' }))];
+      // Specific notifications for MHS Library/Kuthbkhana admins
+      if (user.type === 'mhs' && (user.subRole === 'library' || user.subRole === 'kuthbkhana')) {
+        const mhsLibNotifs = await loadData(`mhsLibNotifications_${user.subRole}`, []);
+        userNotifications = [...userNotifications, ...mhsLibNotifs];
       }
-    }
-    
-    setNotifications(userNotifications.sort((a, b) => new Date(b.date || b.timestamp) - new Date(a.date || a.timestamp)));
+      // Specific notifications for MHS Seller
+      if (user.type === 'mhs' && user.subRole === 'seller') {
+        const sellerNotifs = await loadData(`userNotifications_Seller Example`, []);
+        userNotifications = [...userNotifications, ...sellerNotifs];
+      }
+      // Student library messages
+      if (user.type === 'student' || user.type === 'master') {
+        const libraryMessagesKey = `studentLibMessages_${user.name}`;
+        const studentLibMsgs = await loadData(libraryMessagesKey, []);
+        if (studentLibMsgs.length > 0) {
+          userNotifications = [...userNotifications, ...studentLibMsgs.map(m => ({ ...m, source: 'Library System' }))];
+        }
+      }
+      setNotifications(userNotifications.sort((a, b) => new Date(b.date || b.timestamp) - new Date(a.date || a.timestamp)));
+      setTeams(await loadData('teamsData', []));
+    };
+    fetchHomeData();
   }, [user]);
 
-  const handleUnlockPassword = (notification) => {
+  const handleUnlockPassword = async (notification) => {
     const { userToUnlock, userType, userRole, userSubRole } = notification.recoveryData;
     const userKey = userToUnlock.toLowerCase().replace(/\s+/g, '');
-    const newPassword = generatePassword(userToUnlock, userType, userSubRole); // Uses the standard generation logic
-    
-    const storedPasswords = loadData('userPasswords', {});
+    const newPassword = generatePassword(userToUnlock, userType, userSubRole);
+
+    const storedPasswords = await loadData('userPasswords', {});
     const userPasswordKey = `${userType}_${userKey}${userSubRole ? `_${userSubRole}` : ''}`;
     storedPasswords[userPasswordKey] = newPassword;
-    saveData('userPasswords', storedPasswords);
+    await saveData('userPasswords', storedPasswords);
 
     // Clear login attempts for the unlocked user
-    const loginAttempts = loadData('loginAttempts', {});
+    const loginAttempts = await loadData('loginAttempts', {});
     delete loginAttempts[userKey];
-    saveData('loginAttempts', loginAttempts);
+    await saveData('loginAttempts', loginAttempts);
 
     toast({ title: "Password Unlocked", description: `Password for ${userToUnlock} has been reset to default.`, className: "bg-green-500 text-white" });
-    
+
     // Remove this specific notification
     const updatedNotifications = notifications.filter(n => n.id !== notification.id && n.recoveryData?.id !== notification.recoveryData?.id);
     setNotifications(updatedNotifications);
-    saveData(`userNotifications_${user.name}`, updatedNotifications); // Save updated notifications for the master
+    await saveData(`userNotifications_${user.name}`, updatedNotifications);
   };
-
 
   return (
     <ScrollArea className="h-full p-1">
@@ -125,14 +123,12 @@ const HomePage = ({ user }) => {
               </Card>
             ) : null}
 
-
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <QuickAccessCard title="Upcoming Events" icon={CalendarDays} description="Check the circular for the latest event schedule." linkTo="/circular" />
               <QuickAccessCard title="Store Updates" icon={ShoppingCart} description="See new items and offers in the store." linkTo="/store" />
               <QuickAccessCard title="Postogram Feed" icon={Info} description="Catch up on the latest posts and announcements." linkTo="/postogram" />
               <QuickAccessCard title="Chat Groups" icon={MessageSquare} description="Join discussions and collaborate in chat groups." linkTo="/chatgroup" />
             </div>
-
           </CardContent>
         </Card>
       </div>
