@@ -36,24 +36,12 @@ const publicGroupNames = [
 const ChatGroupPage = ({ user }) => {
   const { toast } = useToast();
 
-  const [groups, setGroups] = useState(
-    loadData('chatGroups',
-      publicGroupNames.map(name => ({
-        id: name.toLowerCase().replace(/\s+/g, '-'),
-        name,
-        members: ['all'],
-        messages: [],
-        isPublic: true,
-        createdBy: 'Admin'
-      }))
-    )
-  );
-
+  const [groups, setGroups] = useState([]);
   const [selectedGroup, setSelectedGroup] = useState(null);
   const [newMessage, setNewMessage] = useState('');
-  const [notepadContent, setNotepadContent] = useState(loadData('chatNotepad', ''));
+  const [notepadContent, setNotepadContent] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [userProfilePhoto, setUserProfilePhoto] = useState(loadData(`profilePhoto_${user.name}`, null));
+  const [userProfilePhoto, setUserProfilePhoto] = useState(null);
 
   const [recording, setRecording] = useState(false);
   const mediaRecorderRef = useRef(null);
@@ -62,6 +50,24 @@ const ChatGroupPage = ({ user }) => {
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
   const profilePhotoInputRef = useRef(null);
+
+  useEffect(() => {
+    const fetchChatData = async () => {
+      setGroups(await loadData('chatGroups',
+        publicGroupNames.map(name => ({
+          id: name.toLowerCase().replace(/\s+/g, '-'),
+          name,
+          members: ['all'],
+          messages: [],
+          isPublic: true,
+          createdBy: 'Admin'
+        }))
+      ));
+      setNotepadContent(await loadData('chatNotepad', ''));
+      setUserProfilePhoto(await loadData(`profilePhoto_${user.name}`, null));
+    };
+    fetchChatData();
+  }, [user.name]);
 
   useEffect(() => {
     saveData('chatGroups', groups);
@@ -168,10 +174,10 @@ const ChatGroupPage = ({ user }) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       const reader = new FileReader();
-      reader.onload = () => {
+      reader.onload = async () => {
         const base64 = reader.result;
         setUserProfilePhoto(base64);
-        saveData(`profilePhoto_${user.name}`, base64);
+        await saveData(`profilePhoto_${user.name}`, base64);
         toast({ title: "Profile Photo Updated!", className: "bg-green-500 text-white" });
       };
       reader.readAsDataURL(file);
